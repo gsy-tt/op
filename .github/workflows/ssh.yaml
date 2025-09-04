@@ -15,21 +15,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup tmate session
+      - name: Setup tmate session (with Web URL output)
         uses: mxschmitt/action-tmate@v3
         with:
           timeout-minutes: ${{ github.event.inputs.timeout }}
-          limit-access-to-actor: true  # 仅允许触发工作流的用户访问，安全！
-          # enable-ipv6: true  # 可选：绕过部分网络限制时启用
-
-      - name: Display connection instructions (SSH + Web)
-        run: |
-          echo "======================================"
-          echo "【1. SSH 连接方式】"
-          echo "运行以下命令连接：ssh $TMATE_SSH_HOST"
-          echo "======================================"
-          echo "【2. 网页连接方式】"
-          echo "复制链接到浏览器打开：$TMATE_WEB_URL"  # 显式打印网页地址
-          echo "======================================"
-          echo "注意：会话将在 ${{ github.event.inputs.timeout }} 分钟后自动关闭"
+          limit-access-to-actor: true
+          # 关键：通过 `additional-ssh-args` 触发变量打印，或直接在同步骤运行命令
+          # 以下命令会在 tmate 启动后，立即打印 Web 地址和 SSH 信息
+          command: |
+            echo "======================================"
+            echo "✅ tmate 会话已启动！"
+            echo "【网页连接】复制到浏览器打开：$TMATE_WEB_URL"
+            echo "【SSH 连接】终端运行：ssh $TMATE_SSH_HOST"
+            echo "【会话有效期】${{ github.event.inputs.timeout }} 分钟"
+            echo "======================================"
+          # 可选：启用 IPv6（解决部分网络无法访问网页的问题）
+          # enable-ipv6: true
     
