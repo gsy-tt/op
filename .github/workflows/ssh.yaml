@@ -5,7 +5,7 @@ on:
     inputs:
       timeout:
         description: 'tmate session timeout in minutes'
-        default: '160'
+        default: '600'
         required: true
 
 jobs:
