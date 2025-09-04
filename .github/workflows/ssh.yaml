@@ -5,7 +5,7 @@ on:
     inputs:
       timeout:
         description: 'tmate session timeout in minutes'
-        default: '60'
+        default: '160'
         required: true
 
 jobs:
@@ -19,13 +19,17 @@ jobs:
         uses: mxschmitt/action-tmate@v3
         with:
           timeout-minutes: ${{ github.event.inputs.timeout }}
-          limit-access-to-actor: true
-          # 可选：启用 IPv6 支持以绕过某些网络限制
-          # enable-ipv6: true
-          
-      - name: Display connection instructions
+          limit-access-to-actor: true  # 仅允许触发工作流的用户访问，安全！
+          # enable-ipv6: true  # 可选：绕过部分网络限制时启用
+
+      - name: Display connection instructions (SSH + Web)
         run: |
           echo "======================================"
-          echo "请使用以下命令连接到 tmate 会话："
-          echo "ssh $TMATE_SSH_HOST"
+          echo "【1. SSH 连接方式】"
+          echo "运行以下命令连接：ssh $TMATE_SSH_HOST"
           echo "======================================"
+          echo "【2. 网页连接方式】"
+          echo "复制链接到浏览器打开：$TMATE_WEB_URL"  # 显式打印网页地址
+          echo "======================================"
+          echo "注意：会话将在 ${{ github.event.inputs.timeout }} 分钟后自动关闭"
+    
