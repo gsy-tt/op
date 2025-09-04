@@ -1,50 +1,41 @@
-name: SSH into GitHub Actions runner
+name: Get GitHub Runner Web Terminal
 
 on:
   workflow_dispatch:
     inputs:
       timeout:
-        description: 'tmate session timeout in minutes'
-        default: '600'
+        description: '会话超时分钟数'
+        default: '60'
         required: true
 
 jobs:
-  build:
+  web-terminal:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      # 第一步：手动安装 tmate（系统自带源，稳定无依赖）
+      - name: Install tmate manually
+        run: sudo apt update && sudo apt install -y tmate
 
-      - name: Setup tmate session (Force Web URL output)
-        uses: mxschmitt/action-tmate@v3
-        with:
-          timeout-minutes: ${{ github.event.inputs.timeout }}
-          limit-access-to-actor: true
-          enable-ipv6: true  # 强制启用 IPv6，解决多数 Web 访问问题
-          # 关键：用 tmux 命令直接读取 tmate 内部变量，不依赖环境变量
-          command: |
-            echo "======================================"
-            echo "🔍 正在排查 tmate 连接信息..."
-            # 1. 先获取并保存 Web 地址（tmate 会把信息存在 tmux 环境变量中）
-            TMATE_WEB=$(tmux show-environment TMATE_WEB_URL 2>/dev/null | sed 's/^TMATE_WEB_URL=//')
-            TMATE_SSH=$(tmux show-environment TMATE_SSH_CMD 2>/dev/null | sed 's/^TMATE_SSH_CMD=//')
-            
-            # 2. 输出 Web 地址（若存在）
-            if [ -n "$TMATE_WEB" ]; then
-              echo "✅ 网页连接地址："
-              echo "$TMATE_WEB"
-              echo "（复制到浏览器，登录 GitHub 即可验证）"
-            else
-              echo "⚠️ 未找到 Web 地址，尝试备用链接格式："
-              echo "https://tmate.io/t/$(tmux display-message -p '#{session_name}')"
-            fi
-            
-            # 3. 输出 SSH 连接信息
-            if [ -n "$TMATE_SSH" ]; then
-              echo -e "\n✅ SSH 连接命令："
-              echo "$TMATE_SSH"
-            fi
-            
-            echo -e "\n⏰ 会话将在 ${{ github.event.inputs.timeout }} 分钟后关闭"
-            echo "======================================"
+      # 第二步：启动 tmate 并强制生成 Web 地址，同时打印到日志
+      - name: Start tmate and show Web URL
+        run: |
+          # 启动 tmate 后台进程（避免阻塞）
+          tmate -S /tmp/tmate.sock new-session -d
+          
+          # 等待 2 秒让 tmate 连接服务器（避免网络延迟导致地址没生成）
+          sleep 2
+          
+          # 关键：用 tmate 自带命令直接获取 Web 地址和 SSH 命令
+          echo "======================================"
+          echo "✅ 网页终端地址（复制到浏览器）："
+          tmate -S /tmp/tmate.sock display-message -p '#{tmate_web_url}'
+          echo -e "\n✅ SSH 连接命令（终端运行）："
+          tmate -S /tmp/tmate.sock display-message -p '#{tmate_ssh_command}'
+          echo -e "\n⏰ 会话 ${INPUT_TIMEOUT} 分钟后自动关闭"
+          echo "======================================"
+          
+          # 保持会话不退出（按超时时间等待）
+          sleep $((INPUT_TIMEOUT * 600))
+        env:
+          INPUT_TIMEOUT: ${{ github.event.inputs.timeout }}
     
