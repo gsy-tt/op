@@ -15,20 +15,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup tmate session (with Web URL output)
+      - name: Setup tmate session (Force Web URL output)
         uses: mxschmitt/action-tmate@v3
         with:
           timeout-minutes: ${{ github.event.inputs.timeout }}
           limit-access-to-actor: true
-          # 关键：通过 `additional-ssh-args` 触发变量打印，或直接在同步骤运行命令
-          # 以下命令会在 tmate 启动后，立即打印 Web 地址和 SSH 信息
+          enable-ipv6: true  # 强制启用 IPv6，解决多数 Web 访问问题
+          # 关键：用 tmux 命令直接读取 tmate 内部变量，不依赖环境变量
           command: |
             echo "======================================"
-            echo "✅ tmate 会话已启动！"
-            echo "【网页连接】复制到浏览器打开：$TMATE_WEB_URL"
-            echo "【SSH 连接】终端运行：ssh $TMATE_SSH_HOST"
-            echo "【会话有效期】${{ github.event.inputs.timeout }} 分钟"
+            echo "🔍 正在排查 tmate 连接信息..."
+            # 1. 先获取并保存 Web 地址（tmate 会把信息存在 tmux 环境变量中）
+            TMATE_WEB=$(tmux show-environment TMATE_WEB_URL 2>/dev/null | sed 's/^TMATE_WEB_URL=//')
+            TMATE_SSH=$(tmux show-environment TMATE_SSH_CMD 2>/dev/null | sed 's/^TMATE_SSH_CMD=//')
+            
+            # 2. 输出 Web 地址（若存在）
+            if [ -n "$TMATE_WEB" ]; then
+              echo "✅ 网页连接地址："
+              echo "$TMATE_WEB"
+              echo "（复制到浏览器，登录 GitHub 即可验证）"
+            else
+              echo "⚠️ 未找到 Web 地址，尝试备用链接格式："
+              echo "https://tmate.io/t/$(tmux display-message -p '#{session_name}')"
+            fi
+            
+            # 3. 输出 SSH 连接信息
+            if [ -n "$TMATE_SSH" ]; then
+              echo -e "\n✅ SSH 连接命令："
+              echo "$TMATE_SSH"
+            fi
+            
+            echo -e "\n⏰ 会话将在 ${{ github.event.inputs.timeout }} 分钟后关闭"
             echo "======================================"
-          # 可选：启用 IPv6（解决部分网络无法访问网页的问题）
-          # enable-ipv6: true
     
